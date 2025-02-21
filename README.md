@@ -1,5 +1,11 @@
 # `@actions/upload-artifact`
 
+> [!WARNING]
+> actions/upload-artifact@v3 is scheduled for deprecation on **November 30, 2024**. [Learn more.](https://github.blog/changelog/2024-04-16-deprecation-notice-v3-of-the-artifact-actions/)
+> Similarly, v1/v2 are scheduled for deprecation on **June 30, 2024**.
+> Please update your workflow to use v4 of the artifact actions.
+> This deprecation will not impact any existing versions of GitHub Enterprise Server being used by customers.
+
 Upload [Actions Artifacts](https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts) from your Workflow Runs. Internally powered by [@actions/artifact](https://github.com/actions/toolkit/tree/main/packages/artifact) package.
 
 See also [download-artifact](https://github.com/actions/download-artifact).
@@ -58,6 +64,7 @@ There is also a new sub-action, `actions/upload-artifact/merge`. For more info, 
     Due to how Artifacts are created in this new version, it is no longer possible to upload to the same named Artifact multiple times. You must either split the uploads into multiple Artifacts with different names, or only upload once. Otherwise you _will_ encounter an error.
 
 3. Limit of Artifacts for an individual job. Each job in a workflow run now has a limit of 500 artifacts.
+4. With `v4.4` and later, hidden files are excluded by default.
 
 For assistance with breaking changes, see [MIGRATION.md](docs/MIGRATION.md).
 
@@ -101,6 +108,12 @@ For assistance with breaking changes, see [MIGRATION.md](docs/MIGRATION.md).
     # Does not fail if the artifact does not exist.
     # Optional. Default is 'false'
     overwrite:
+
+    # Whether to include hidden files in the provided path in the artifact
+    # The file contents of any hidden files in the path should be validated before
+    # enabled this to avoid uploading sensitive information.
+    # Optional. Default is 'false'
+    include-hidden-files:
 ```
 
 ### Outputs
@@ -109,6 +122,7 @@ For assistance with breaking changes, see [MIGRATION.md](docs/MIGRATION.md).
 | - | - | - |
 | `artifact-id` | GitHub ID of an Artifact, can be used by the REST API | `1234` |
 | `artifact-url` | URL to download an Artifact. Can be used in many scenarios such as linking to artifacts in issues or pull requests. Users must be logged-in in order for this URL to work. This URL is valid as long as the artifact has not expired or the artifact, run or repository have not been deleted | `https://github.com/example-org/example-repo/actions/runs/1/artifacts/1234` |
+| `artifact-digest` | SHA-256 digest of an Artifact | 0fde654d4c6e659b45783a725dc92f1bfb0baa6c2de64b34e814dc206ff4aaaf |
 
 ## Examples
 
@@ -404,11 +418,33 @@ jobs:
           overwrite: true
 ```
 
+### Uploading Hidden Files
+
+By default, hidden files are ignored by this action to avoid unintentionally uploading sensitive information.
+
+If you need to upload hidden files, you can use the `include-hidden-files` input.
+Any files that contain sensitive information that should not be in the uploaded artifact can be excluded
+using the `path`:
+
+```yaml
+- uses: actions/upload-artifact@v4
+  with:
+    name: my-artifact
+    include-hidden-files: true
+    path: |
+      path/output/
+      !path/output/.production.env
+```
+
+Hidden files are defined as any file beginning with `.` or files within folders beginning with `.`.
+On Windows, files and directories with the hidden attribute are not considered hidden files unless
+they have the `.` prefix.
+
 ## Limitations
 
 ### Number of Artifacts
 
-Within an individual job, there is a limit of 10 artifacts that can be created for that job.
+Within an individual job, there is a limit of 500 artifacts that can be created for that job.
 
 You may also be limited by Artifacts if you have exceeded your shared storage quota. Storage is calculated every 6-12 hours. See [the documentation](https://docs.github.com/en/billing/managing-billing-for-github-actions/about-billing-for-github-actions#calculating-minute-and-storage-spending) for more info.
 
